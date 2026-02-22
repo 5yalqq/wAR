@@ -1,0 +1,128 @@
+-- Modern Cheat To Win Script (With K Key Toggle)
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+-- إنشاء الواجهة
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CheatToWin_Toggle"
+ScreenGui.Parent = (gethui and gethui()) or CoreGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 320, 0, 420)
+MainFrame.Position = UDim2.new(0.5, -160, 0.5, -210)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+-- إضافة حواف مستديرة
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
+
+-- [ميزة الاختفاء]: وظيفة الزر K
+local isVisible = true
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.K then
+        isVisible = not isVisible
+        MainFrame.Visible = isVisible
+    end
+end)
+
+-- العنوان
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.Text = "CHEAT TO WIN - PRESS 'K' TO HIDE"
+Title.TextColor3 = Color3.fromRGB(0, 170, 255)
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+Title.Parent = MainFrame
+
+-- قائمة اللاعبين
+local PlayerScroll = Instance.new("ScrollingFrame")
+PlayerScroll.Position = UDim2.new(0.05, 0, 0.12, 0)
+PlayerScroll.Size = UDim2.new(0.9, 0, 0.3, 0)
+PlayerScroll.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+PlayerScroll.BorderSizePixel = 0
+PlayerScroll.Parent = MainFrame
+
+local UIList = Instance.new("UIListLayout")
+UIList.Parent = PlayerScroll
+UIList.Padding = UDim.new(0, 4)
+
+-- إنشاء الحقول (نفس ميكانيكية البحث والاستبدال)
+local function CreateBox(placeholder, pos)
+    local box = Instance.new("TextBox")
+    box.Size = UDim2.new(0.9, 0, 0, 35)
+    box.Position = pos
+    box.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    box.PlaceholderText = placeholder
+    box.Text = ""
+    box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    box.Font = Enum.Font.Gotham
+    box.Parent = MainFrame
+    Instance.new("UICorner").Parent = box
+    return box
+end
+
+local StatNameInput = CreateBox("اسم القيمة (Cash)", UDim2.new(0.05, 0, 0.45, 0))
+local OldValueInput = CreateBox("القيمة الحالية (مثلاً: 30001)", UDim2.new(0.05, 0, 0.56, 0))
+local NewValueInput = CreateBox("القيمة الجديدة (مثلاً: 99999)", UDim2.new(0.05, 0, 0.67, 0))
+
+local ApplyBtn = Instance.new("TextButton")
+ApplyBtn.Size = UDim2.new(0.9, 0, 0, 45)
+ApplyBtn.Position = UDim2.new(0.05, 0, 0.82, 0)
+ApplyBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+ApplyBtn.Text = "تعديل القيمة"
+ApplyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ApplyBtn.Font = Enum.Font.GothamBold
+ApplyBtn.Parent = MainFrame
+Instance.new("UICorner").Parent = ApplyBtn
+
+-- منطق التحديث
+local selectedPlayer = nil
+
+local function RefreshList()
+    for _, v in pairs(PlayerScroll:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
+    for _, p in pairs(Players:GetPlayers()) do
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.new(1, 0, 0, 25)
+        b.Text = p.Name
+        b.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        b.TextColor3 = Color3.fromRGB(255, 255, 255)
+        b.Parent = PlayerScroll
+        Instance.new("UICorner").Parent = b
+        b.MouseButton1Click:Connect(function()
+            selectedPlayer = p
+            for _, btn in pairs(PlayerScroll:GetChildren()) do if btn:IsA("TextButton") then btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50) end end
+            b.BackgroundColor3 = Color3.fromRGB(0, 100, 200)
+        end)
+    end
+end
+
+ApplyBtn.MouseButton1Click:Connect(function()
+    if selectedPlayer and StatNameInput.Text ~= "" then
+        local stats = selectedPlayer:FindFirstChild("leaderstats")
+        if stats then
+            local target = stats:FindFirstChild(StatNameInput.Text)
+            if target then
+                -- نظام التأكد قبل التعديل
+                if tostring(target.Value) == OldValueInput.Text then
+                    target.Value = tonumber(NewValueInput.Text) or NewValueInput.Text
+                    ApplyBtn.Text = "تم التعديل! ✅"
+                else
+                    ApplyBtn.Text = "القيمة الحالية غير متطابقة ❌"
+                end
+                task.wait(1)
+                ApplyBtn.Text = "تعديل القيمة"
+            end
+        end
+    end
+end)
+
+Players.PlayerAdded:Connect(RefreshList)
+Players.PlayerRemoving:Connect(RefreshList)
+RefreshList()
