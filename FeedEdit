@@ -1,0 +1,151 @@
+local Players = game:GetService("Players")
+local UserService = game:GetService("UserService")
+local UserInputService = game:GetService("UserInputService") -- الخدمة المسؤولة عن الكيبورد
+local player = Players.LocalPlayer
+local gui = player:WaitForChild("PlayerGui")
+
+local fakeName = ""
+local fakeUser = ""
+local isSpoofing = false
+
+---------------------------------------------------------
+-- 1. إنشاء واجهة المستخدم (GUI)
+---------------------------------------------------------
+local coreGui = pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui") or gui
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "SpooferGUI"
+ScreenGui.Parent = coreGui
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 250, 0, 130)
+Frame.Position = UDim2.new(0.5, -125, 0.5, -65)
+Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true 
+Frame.Parent = ScreenGui
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Text = "Killer Spoofer (Press P to Toggle)"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+Title.Parent = Frame
+
+local TextBox = Instance.new("TextBox")
+TextBox.Size = UDim2.new(0.9, 0, 0, 35)
+TextBox.Position = UDim2.new(0.05, 0, 0.35, 0)
+TextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextBox.PlaceholderText = "اكتب اليوزر هنا (بدون @)"
+TextBox.Font = Enum.Font.Gotham
+TextBox.TextSize = 14
+TextBox.Text = ""
+TextBox.Parent = Frame
+
+local ApplyBtn = Instance.new("TextButton")
+ApplyBtn.Size = UDim2.new(0.9, 0, 0, 35)
+ApplyBtn.Position = UDim2.new(0.05, 0, 0.68, 0)
+ApplyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+ApplyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ApplyBtn.Text = "تطبيق (Apply)"
+ApplyBtn.Font = Enum.Font.GothamBold
+ApplyBtn.TextSize = 14
+ApplyBtn.Parent = Frame
+
+---------------------------------------------------------
+-- 2. إخفاء وإظهار الواجهة بزر P
+---------------------------------------------------------
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    -- gameProcessed تتأكد إنك مو قاعد تكتب في الشات أو في المربع
+    if not gameProcessed then
+        if input.KeyCode == Enum.KeyCode.P then
+            ScreenGui.Enabled = not ScreenGui.Enabled -- يعكس الحالة (إذا ظاهرة يخفيها والعكس)
+        end
+    end
+end)
+
+---------------------------------------------------------
+-- 3. نظام التزييف (Spoofing System)
+---------------------------------------------------------
+local function updateElement(v)
+    if not isSpoofing or not v:IsA("TextLabel") then return end
+
+    if v.Text == fakeName or v.Text == fakeUser then return end
+
+    if string.find(v.Text, "@") then
+        v.Text = fakeUser
+    elseif v.Name == "Killer" then
+        v.Text = fakeName
+    end
+end
+
+local function setupSpoofer(v)
+    if v:IsA("TextLabel") then
+        v:GetPropertyChangedSignal("Text"):Connect(function() updateElement(v) end)
+        updateElement(v)
+    end
+end
+
+for _, v in pairs(gui:GetDescendants()) do
+    setupSpoofer(v)
+end
+
+gui.DescendantAdded:Connect(function(v)
+    setupSpoofer(v)
+end)
+
+local function forceUpdateAll()
+    for _, v in pairs(gui:GetDescendants()) do
+        updateElement(v)
+    end
+end
+
+---------------------------------------------------------
+-- 4. ربط الزر لجلب الاسم وتفعيل السكربت
+---------------------------------------------------------
+ApplyBtn.MouseButton1Click:Connect(function()
+    local inputUser = TextBox.Text
+    if inputUser == "" or inputUser == " " then
+        ApplyBtn.Text = "اكتب يوزر أولاً!"
+        wait(1.5)
+        ApplyBtn.Text = "تطبيق (Apply)"
+        return
+    end
+
+    ApplyBtn.Text = "جاري البحث..."
+    
+    local success, userId = pcall(function()
+        return Players:GetUserIdFromNameAsync(inputUser)
+    end)
+
+    if success and userId then
+        local success2, userInfo = pcall(function()
+            return UserService:GetUserInfosByUserIdsAsync({userId})
+        end)
+        
+        if success2 and userInfo[1] then
+            fakeName = userInfo[1].DisplayName
+            fakeUser = "@" .. inputUser
+            isSpoofing = true
+            
+            ApplyBtn.Text = "تم التفعيل!"
+            ApplyBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+            
+            forceUpdateAll()
+            
+            wait(2)
+            ApplyBtn.Text = "تطبيق (Apply)"
+            ApplyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+        end
+    else
+        ApplyBtn.Text = "يوزر غير موجود!"
+        ApplyBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        wait(2)
+        ApplyBtn.Text = "تطبيق (Apply)"
+        ApplyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    end
+end)
