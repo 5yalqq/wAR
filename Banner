@@ -7,6 +7,13 @@ local LocalPlayer = Players.LocalPlayer
 local targetPlayer = nil 
 
 -- ==========================================
+-- دالة لحماية النصوص من الرموز الخاصة في البحث (زخارف الأسماء)
+-- ==========================================
+local function escapePattern(text)
+	return string.gsub(text, "([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+end
+
+-- ==========================================
 -- 1. إعدادات التصميم (UI Design)
 -- ==========================================
 local colors = {
@@ -194,6 +201,8 @@ applyBtn.MouseButton1Click:Connect(function()
 
 	local tName = targetPlayer.Name
 	local tDisplayName = targetPlayer.DisplayName
+	local safeTName = escapePattern(tName)
+	local safeTDisplayName = escapePattern(tDisplayName)
 
 	-- تغيير الاسم في خصائص الروبلوكس الأساسية
 	if fetchedDisplayName ~= "" then
@@ -201,7 +210,7 @@ applyBtn.MouseButton1Click:Connect(function()
 		if hum then hum.DisplayName = fetchedDisplayName end
 	end
 
-	-- المرور على جميع النصوص في اللاعب واستبدالها (سواء كلان، لقب، أو اسم)
+	-- المرور على جميع النصوص في اللاعب واستبدالها
 	for _, obj in pairs(targetChar:GetDescendants()) do
 		if obj:IsA("TextLabel") or obj:IsA("TextButton") then
 			local txt = obj.Text
@@ -209,7 +218,7 @@ applyBtn.MouseButton1Click:Connect(function()
 
 			-- 1. استبدال اللقب (مثال: Captain إلى VIP)
 			if oldTitleInput.Text ~= "" and newTitleInput.Text ~= "" then
-				txt = string.gsub(txt, oldTitleInput.Text, newTitleInput.Text)
+				txt = string.gsub(txt, escapePattern(oldTitleInput.Text), newTitleInput.Text)
 			end
 
 			-- 2. استبدال الكلان (يبحث عن أي شيء بين قوسين [ ] ويستبدله)
@@ -217,15 +226,19 @@ applyBtn.MouseButton1Click:Connect(function()
 				txt = string.gsub(txt, "%[.-%]", "[" .. clanInput.Text .. "]")
 			end
 
-			-- 3. استبدال الاسم واليوزر
+			-- 3. استبدال الاسم واليوزر في مكانهم الصحيح
 			if fetchedUsername ~= "" then
-				-- نبدل اليوزر الأساسي
-				txt = string.gsub(txt, tName, fetchedUsername)
-				-- نبدل النك نيم (إذا كان مختلف)
-				txt = string.gsub(txt, tDisplayName, fetchedDisplayName)
+				-- أولاً: نستبدل اليوزر إذا كان مكتوب بصيغة (@User) لضمان عدم تخريب النك نيم
+				txt = string.gsub(txt, "@" .. safeTName, "@" .. fetchedUsername)
+				
+				-- ثانياً: نستبدل النك نيم (DisplayName) في مكان النك نيم
+				txt = string.gsub(txt, safeTDisplayName, fetchedDisplayName)
+				
+				-- ثالثاً: نستبدل اليوزر نيم (Username) في حال كان مكتوب بدون @ ولم يُستبدل بعد
+				txt = string.gsub(txt, safeTName, fetchedUsername)
 			end
 
-			-- تطبيق التغيير فقط إذا حدث اختلاف
+			-- تطبيق التغيير فقط إذا حدث اختلاف لتقليل اللاج
 			if txt ~= originalTxt then
 				obj.Text = txt
 			end
