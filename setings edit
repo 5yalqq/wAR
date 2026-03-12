@@ -1,0 +1,198 @@
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local UserService = game:GetService("UserService")
+local UserInputService = game:GetService("UserInputService") -- الخدمة المسؤولة عن الأزرار
+
+-- ==========================================
+-- 1. بناء واجهة المستخدم 
+-- ==========================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ProSpoofer"
+ScreenGui.Parent = CoreGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 260, 0, 180)
+MainFrame.Position = UDim2.new(0.5, -130, 0.5, -90)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Text = "تغيير هوية الليدربورد الاحترافي (اضغط 0 للإخفاء)"
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 13
+Title.Parent = MainFrame
+
+-- القائمة المنسدلة للضحية
+local DropdownButton = Instance.new("TextButton")
+DropdownButton.Size = UDim2.new(0.9, 0, 0, 30)
+DropdownButton.Position = UDim2.new(0.05, 0, 0.22, 0)
+DropdownButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+DropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+DropdownButton.Text = "اختر الضحية ▼"
+DropdownButton.Font = Enum.Font.SourceSansBold
+DropdownButton.TextSize = 14
+DropdownButton.Parent = MainFrame
+
+-- صندوق إدخال اليوزر أو الأيدي
+local TargetInput = Instance.new("TextBox")
+TargetInput.Size = UDim2.new(0.9, 0, 0, 30)
+TargetInput.Position = UDim2.new(0.05, 0, 0.45, 0)
+TargetInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+TargetInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+TargetInput.PlaceholderText = "اكتب ID أو يوزر الشخص المطلوب..."
+TargetInput.Text = ""
+TargetInput.Font = Enum.Font.SourceSans
+TargetInput.TextSize = 14
+TargetInput.Parent = MainFrame
+
+-- زر التنفيذ
+local ApplyButton = Instance.new("TextButton")
+ApplyButton.Size = UDim2.new(0.9, 0, 0, 35)
+ApplyButton.Position = UDim2.new(0.05, 0, 0.72, 0)
+ApplyButton.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+ApplyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ApplyButton.Text = "تطبيق النسخ"
+ApplyButton.Font = Enum.Font.SourceSansBold
+ApplyButton.TextSize = 16
+ApplyButton.Parent = MainFrame
+
+-- القائمة المنسدلة 
+local DropdownList = Instance.new("ScrollingFrame")
+DropdownList.Size = UDim2.new(0.9, 0, 0, 110)
+DropdownList.Position = UDim2.new(0.05, 0, 0.4, 0)
+DropdownList.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+DropdownList.BorderSizePixel = 1
+DropdownList.BorderColor3 = Color3.fromRGB(100, 100, 100)
+DropdownList.ZIndex = 10 
+DropdownList.Visible = false
+DropdownList.Parent = MainFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = DropdownList
+
+-- ==========================================
+-- 2. المتغيرات والوظائف
+-- ==========================================
+local selectedVictim = nil
+local isSpoofing = false
+local fakeUsername = ""
+local fakeDisplayName = ""
+local fakeAvatar = ""
+
+local function refreshDropdown()
+    for _, child in pairs(DropdownList:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+    
+    local ySize = 0
+    for _, player in pairs(Players:GetPlayers()) do
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, 0, 0, 25)
+        btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btn.Text = player.Name
+        btn.Font = Enum.Font.SourceSans
+        btn.TextSize = 14
+        btn.ZIndex = 11
+        btn.Parent = DropdownList
+        
+        btn.MouseButton1Click:Connect(function()
+            selectedVictim = player
+            DropdownButton.Text = "الضحية: " .. player.Name
+            DropdownList.Visible = false
+        end)
+        ySize = ySize + 25
+    end
+    DropdownList.CanvasSize = UDim2.new(0, 0, 0, ySize)
+end
+
+DropdownButton.MouseButton1Click:Connect(function()
+    DropdownList.Visible = not DropdownList.Visible
+    if DropdownList.Visible then refreshDropdown() end
+end)
+
+-- ==========================================
+-- 3. منطق جلب البيانات والتطبيق
+-- ==========================================
+ApplyButton.MouseButton1Click:Connect(function()
+    if not selectedVictim then
+        ApplyButton.Text = "اختر ضحية أولاً!"
+        task.wait(1.5); ApplyButton.Text = "تطبيق النسخ"
+        return
+    end
+
+    local input = TargetInput.Text
+    local targetId = tonumber(input)
+    ApplyButton.Text = "جاري البحث..."
+    
+    if not targetId then
+        local success, result = pcall(function() return Players:GetUserIdFromNameAsync(input) end)
+        if success then targetId = result else
+            ApplyButton.Text = "يوزر غير صحيح!"
+            task.wait(1.5); ApplyButton.Text = "تطبيق النسخ"
+            return
+        end
+    end
+
+    local success, userInfo = pcall(function()
+        return UserService:GetUserInfosByUserIdsAsync({targetId})
+    end)
+
+    if success and userInfo[1] then
+        fakeUsername = userInfo[1].Username
+        fakeDisplayName = userInfo[1].DisplayName
+        fakeAvatar = "rbxthumb://type=AvatarHeadShot&id="..targetId.."&w=150&h=150"
+        
+        isSpoofing = true
+        ApplyButton.Text = "تم التطبيق بنجاح!"
+        ApplyButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    else
+        ApplyButton.Text = "فشل جلب البيانات!"
+        task.wait(1.5); ApplyButton.Text = "تطبيق النسخ"
+    end
+end)
+
+-- ==========================================
+-- 4. إخفاء وإظهار اللوحة بضغطة زر (رقم 0)
+-- ==========================================
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    -- gameProcessedEvent يتأكد أنك لا تكتب داخل مربع نص (مثل إدخال الـ ID)
+    if not gameProcessedEvent then
+        if input.KeyCode == Enum.KeyCode.Zero or input.KeyCode == Enum.KeyCode.KeypadZero then
+            ScreenGui.Enabled = not ScreenGui.Enabled
+        end
+    end
+end)
+
+-- ==========================================
+-- 5. التعديل المستمر على قائمة روبلوكس (CoreGui)
+-- ==========================================
+RunService.RenderStepped:Connect(function()
+    if isSpoofing and selectedVictim then
+        local robloxGui = CoreGui:FindFirstChild("RobloxGui")
+        if robloxGui then
+            for _, v in pairs(robloxGui:GetDescendants()) do
+                if v:IsA("TextLabel") then
+                    if v.Text == selectedVictim.DisplayName then
+                        v.Text = fakeDisplayName
+                    elseif v.Text == "@" .. selectedVictim.Name then
+                        v.Text = "@" .. fakeUsername
+                    elseif v.Text == selectedVictim.Name then
+                        v.Text = fakeUsername
+                    end
+                elseif v:IsA("ImageLabel") then
+                    if v.Image:find(tostring(selectedVictim.UserId)) then
+                        v.Image = fakeAvatar
+                    end
+                end
+            end
+        end
+    end
+end)
